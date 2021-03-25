@@ -18,28 +18,38 @@ export default NextAuth({
       scope: 'read:user,user:email'
     }),
   ],
+  jwt: {
+    signingKey: process.env.SIGNIN_KEY
+  },
   callbacks: {
     async signIn(user, account, profile) {
 
-      const responseGetUserEmails = await fetch('https://api.github.com/user/emails', {
-        headers: {
-          'Authorization': `Bearer ${account.accessToken}`,
-        }
-      })
+      try {
 
-      const userEmails = await responseGetUserEmails.json();
-
-      const { email } = userEmails.find((email: GitHubUserEmail) => email.primary)
-
-      await fauna.query(
-        query.Create(
-          query.Collection('users'),
-          {
-            data: { email }
+        const responseGetUserEmails = await fetch('https://api.github.com/user/emails', {
+          headers: {
+            'Authorization': `Bearer ${account.accessToken}`,
           }
+        })
+
+        const userEmails = await responseGetUserEmails.json();
+
+        const { email } = userEmails.find((email: GitHubUserEmail) => email.primary)
+
+        await fauna.query(
+          query.Create(
+            query.Collection('users'),
+            {
+              data: { email }
+            }
+          )
         )
-      )
-      return true;
+
+        return true;
+      } catch {
+        return false;
+      }
+
     }
   }
 })
