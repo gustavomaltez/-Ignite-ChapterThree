@@ -31,6 +31,14 @@ export default NextAuth({
 
       const { email } = userEmails.find((email: GitHubUserEmail) => email.primary)
 
+      await fauna.query(
+        query.Create(
+          query.Collection('users'),
+          {
+            data: { email }
+          }
+        )
+      )
       return true;
     }
   }
