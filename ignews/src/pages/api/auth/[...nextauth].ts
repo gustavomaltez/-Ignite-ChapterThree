@@ -2,13 +2,7 @@ import NextAuth from 'next-auth'
 import Providers from 'next-auth/providers'
 import { query } from 'faunadb';
 import { fauna } from '../../../services/fauna';
-
-interface GitHubUserEmail {
-  email: string,
-  primary: boolean,
-  verified: boolean,
-  visibility: string | null
-}
+import getGitHubUserPrimaryEmail from '../../../utils/getGitHubUserPrimaryEmail';
 
 export default NextAuth({
   providers: [
@@ -28,16 +22,9 @@ export default NextAuth({
     async signIn(user, account, profile) {
 
       try {
+        const userToken = `${account.accessToken}`;
 
-        const responseGetUserEmails = await fetch('https://api.github.com/user/emails', {
-          headers: {
-            'Authorization': `Bearer ${account.accessToken}`,
-          }
-        })
-
-        const userEmails = await responseGetUserEmails.json();
-
-        const { email } = userEmails.find((email: GitHubUserEmail) => email.primary)
+        const email = await getGitHubUserPrimaryEmail(userToken);
 
         await fauna.query(
           query.If(
@@ -51,7 +38,7 @@ export default NextAuth({
             ),
             query.Create(
               query.Collection('users'),
-              { data: { email }}
+              { data: { email } }
             ),
             query.Get(
               query.Match(
