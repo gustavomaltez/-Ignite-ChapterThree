@@ -1,16 +1,42 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getSession } from "next-auth/client";
 import { stripe } from "../../services/stripe";
+import { query } from 'faunadb';
+import { fauna } from "../../services/fauna";
 
+type User = {
+    ref: {
+        id: string;
+    }
+}
 export default async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === 'POST') {
         const session = await getSession({ req });
+
+        const user = await fauna.query<User>(
+            query.Get(
+                query.Match(
+                    query.Index('user_by_email'),
+                    query.Casefold(session.user.email)
+                )
+            )
+        )
 
         const stripeCustomer = await stripe.customers.create({
             email: session.user.email,
             // metadata
         });
 
+        await fauna.query(
+            query.Update(
+                query.Ref(query.Collection('users'), user.ref.id),
+                {
+                    data: {
+                        stripe_customer_id: stripeCustomer.id
+                    }
+                }
+            )
+        )
         const stripeCheckoutSession = await stripe.checkout.sessions.create({
             customer: stripeCustomer.id,
             payment_method_types: ['card'],
@@ -24,7 +50,7 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
             cancel_url: process.env.STRIPE_CANCEL_URL
         })
 
-        return res.status(200).json({sessionId: stripeCheckoutSession.id});
+        return res.status(200).json({ sessionId: stripeCheckoutSession.id });
     } else {
         res.setHeader('Allow', 'POST');
         res.status(405).end('Method not allowed');
