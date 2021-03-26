@@ -13,9 +13,7 @@ export function SubscribeButton({priceId}: SubscribeButtonProps) {
         if(!session){
             signIn('github');
             return;
-        }
-
-        
+        }      
     }
 
     return (

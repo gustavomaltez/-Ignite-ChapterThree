@@ -25,7 +25,8 @@ export default NextAuth({
         const userToken = `${account.accessToken}`;
 
         const email = await getGitHubUserPrimaryEmail(userToken);
-
+        user.email = email;
+        
         await fauna.query(
           query.If(
             query.Not(

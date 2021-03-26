@@ -1,16 +1,13 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getSession } from "next-auth/client";
 import { stripe } from "../../services/stripe";
-import getGitHubUserPrimaryEmail from "../../utils/getGitHubUserPrimaryEmail";
 
 export default async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === 'POST') {
         const session = await getSession({ req });
-        const userToken = `${session.}`;
-        const email = await getGitHubUserPrimaryEmail(userToken);
 
         const stripeCustomer = await stripe.customers.create({
-            email,
+            email: session.user.email,
             // metadata
         });
 
