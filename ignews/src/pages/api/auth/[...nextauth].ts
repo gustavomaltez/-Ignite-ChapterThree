@@ -18,8 +18,11 @@ export default NextAuth({
       scope: 'read:user,user:email'
     }),
   ],
+  session: {
+    jwt: true,
+  },
   jwt: {
-    signingKey: process.env.SIGNIN_KEY
+    signingKey: process.env.JWT_SIGNING_PRIVATE_KEY,
   },
   callbacks: {
     async signIn(user, account, profile) {
@@ -37,11 +40,25 @@ export default NextAuth({
         const { email } = userEmails.find((email: GitHubUserEmail) => email.primary)
 
         await fauna.query(
-          query.Create(
-            query.Collection('users'),
-            {
-              data: { email }
-            }
+          query.If(
+            query.Not(
+              query.Exists(
+                query.Match(
+                  query.Index('user_by_email'),
+                  query.Casefold(email)
+                )
+              )
+            ),
+            query.Create(
+              query.Collection('users'),
+              { data: { email }}
+            ),
+            query.Get(
+              query.Match(
+                query.Index('user_by_email'),
+                query.Casefold(email)
+              )
+            )
           )
         )
 
@@ -53,3 +70,4 @@ export default NextAuth({
     }
   }
 })
+
