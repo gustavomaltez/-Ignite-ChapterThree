@@ -3,8 +3,19 @@ import Head from 'next/head';
 import { getPrismicClient } from '../../services/prismic';
 import styles from './styles.module.scss';
 import Prismic from '@prismicio/client';
+import { RichText } from 'prismic-dom';
 
-export default function Posts(){
+type Post = {
+    slug: string;
+    title: string;
+    excerpt: string;
+    updatedAt: string;
+}
+interface PostsProps {
+    posts: Post[];
+}
+
+export default function Posts({ posts }: PostsProps) {
     return (
         <>
             <Head>
@@ -13,31 +24,13 @@ export default function Posts(){
 
             <main className={styles.container}>
                 <div className={styles.posts}>
-                    <a href="#">
-                        <time>12 de março de 2021</time>
-                        <strong>Authentication in Next.js: Building an auth API with NextAuth.js</strong>
-                        <p>Authentication is the act of proving that someone is who they say they are — confirming the identity of a user in an application, for example. In this tutorial...</p>
-                    </a>
-                    <a href="#">
-                        <time>12 de março de 2021</time>
-                        <strong>Authentication in Next.js: Building an auth API with NextAuth.js</strong>
-                        <p>Authentication is the act of proving that someone is who they say they are — confirming the identity of a user in an application, for example. In this tutorial...</p>
-                    </a>
-                    <a href="#">
-                        <time>12 de março de 2021</time>
-                        <strong>Authentication in Next.js: Building an auth API with NextAuth.js</strong>
-                        <p>Authentication is the act of proving that someone is who they say they are — confirming the identity of a user in an application, for example. In this tutorial...</p>
-                    </a>
-                    <a href="#">
-                        <time>12 de março de 2021</time>
-                        <strong>Authentication in Next.js: Building an auth API with NextAuth.js</strong>
-                        <p>Authentication is the act of proving that someone is who they say they are — confirming the identity of a user in an application, for example. In this tutorial...</p>
-                    </a>
-                    <a href="#">
-                        <time>12 de março de 2021</time>
-                        <strong>Authentication in Next.js: Building an auth API with NextAuth.js</strong>
-                        <p>Authentication is the act of proving that someone is who they say they are — confirming the identity of a user in an application, for example. In this tutorial...</p>
-                    </a>
+                    {posts.map(post => (
+                        <a key={post.slug} href={`/posts/${post.slug}`}>
+                            <time>{post.updatedAt}</time>
+                            <strong>{post.title}</strong>
+                            <p>{post.excerpt}</p>
+                        </a>
+                    ))}
                 </div>
             </main>
         </>
@@ -51,15 +44,27 @@ export const getStaticProps: GetStaticProps = async () => {
     const response = await prismic.query(
         [Prismic.predicates.at('document.type', 'post')],
         {
-            fetch: ['publication.title','publication.content'],
+            fetch: ['publication.title', 'publication.content'],
             pageSize: 100
         }
     )
 
-    console.log(response);
+    const posts = response.results.map(post => {
+        return {
+            slug: post.uid,
+            title: RichText.asText(post.data.title),
+            excerpt: post.data.content.find(content => content.type === 'paragraph')?.text ?? '',
+            updatedAt: new Date(post.last_publication_date).toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric'
+            })
+        }
+    });
+
     return {
         props: {
-
+            posts
         }
     }
 }
