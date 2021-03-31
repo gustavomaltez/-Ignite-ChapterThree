@@ -3,6 +3,7 @@ import Providers from 'next-auth/providers'
 import { query } from 'faunadb';
 import { fauna } from '../../../services/fauna';
 import getGitHubUserPrimaryEmail from '../../../utils/getGitHubUserPrimaryEmail';
+import { session } from 'next-auth/client';
 
 export default NextAuth({
   providers: [
@@ -19,6 +20,44 @@ export default NextAuth({
     signingKey: process.env.JWT_SIGNING_PRIVATE_KEY,
   },
   callbacks: {
+    async session(session) {
+
+      try {
+        const userActiveSubscription = await fauna.query(
+          query.Get(
+            query.Intersection([
+              query.Match(
+                query.Index('subscription_by_user_ref'),
+                query.Select(
+                  "ref",
+                  query.Get(
+                    query.Match(
+                      query.Index('user_by_email'),
+                      query.Casefold(session.user.email)
+                    )
+                  )
+                )
+              ),
+              query.Match(
+                query.Index('subscription_by_status'),
+                "active"
+              )
+            ])
+          )
+        )
+
+        return {
+          ...session,
+          activeSubscription: userActiveSubscription
+        };
+      } catch (error) {
+        return {
+          ...session,
+          activeSubscription: null,
+        };
+      }
+
+    },
     async signIn(user, account, profile) {
 
       try {
@@ -26,7 +65,7 @@ export default NextAuth({
 
         const email = await getGitHubUserPrimaryEmail(userToken);
         user.email = email;
-        
+
         await fauna.query(
           query.If(
             query.Not(
